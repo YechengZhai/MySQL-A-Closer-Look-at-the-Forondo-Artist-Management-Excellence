@@ -1,0 +1,150 @@
+use mydb_chan2;
+#6‐92a. List the agreement number, agreement date, and gross amount for each agreement 
+#that has a gross amount greater than or equal to $1,500 and less than or equal to $2,000.
+select AgreementNbr, AgreementDate, GrossAmount from AGREEMENT_T
+where GrossAmount between 1500 and 2000;
+
+#6‐92b. Provide a list of those customers (include their ID and name) the name of 
+#which includes the word “Arts”.
+select CustomerID, CustomerName from CUSTOMER_T 
+where CustomerName like '%Arts%';
+
+#6‐92c. List the artist ID, last name, first name, year of birth, and artist type for 
+#all female artists who liveeither in Pennsylvania or New Jersey.
+select ArtistID, LastName, FirstName, YearOfBirth, ArtistType from ARTIST_T
+where State in ('PA','NJ') and Gender ='F';
+
+#6‐92d. List the artist ID, start date, end date, and royalty percentage for all currently valid contracts that
+#have a royalty percentage greater than 20%. Sort the list in the ascending order by artist ID.
+select ArtistID, StartDate, EndDate, RoyaltyPerc from CONTRACT_T 
+where RoyaltyPerc > 20 and
+StartDate <= sysdate() and EndDate >= sysdate()
+order by ArtistID asc;
+
+#6‐92e. What is the total amount of those customer payments that were made in either February 2015 or
+#March 2015?
+select sum(Amount) from CUSTOMERPAYMENT_T
+where date_format(CPaymentDate,'%Y-%m') = '2015-02' or date_format(CPaymentDate,'%Y-%m') = '2015-03';
+
+#6‐92f. List the IDs of those artists that were paid at least $2000 during the first three months of 2015.
+select ArtistID from ARTISTPAYMENT_T
+where Amount >2000 and APaymentDate between '2015-01-01' and '2015-03-31'; 
+
+
+#6‐92g. List the number of events organized at each of the venues (for those included in the Event table).
+select count(*), VenueID from EVENT_T
+group by VenueID;
+
+#6‐92h. Modify the previous query so that you include only those venues at which at least two events have
+#been organized.
+select count(*), VenueID from EVENT_T
+group by VenueID
+having count(*)>1;
+
+#6‐92i. List the ID, description, amount, and expense type for all manager expense items the amount of
+#which is less than $100 and for all artist expense items the amount of which is less than $50.
+select  ExpenseID, Description, Amount, ExpenseType from EXPENSE_T
+where (Amount < 100 and ExpenseType='M') or (Amount <50 and ExpenseType='A');
+
+#7‐77a. List the artist IDs, full names (in the format of ‘FirstName LastName’) , years of birth and current
+#royalty percentages for all artists that currently have a contract.
+select ARTIST_T.ArtistID, concat(FirstName, ' ', LastName) as FullName, YearOfBirth, RoyaltyPerc from ARTIST_T, CONTRACT_T
+where ARTIST_T.ArtistID= CONTRACT_T.ArtistID
+and EndDate > date_format(sysdate(),'%Y-%m-%d'); 
+
+#7‐77b. List the event ID, event description, date, and time for all events at which artist Juan Becker is
+#scheduled to perform. Make sure that each event is included only once.
+select distinct EVENT_T.EventID, EventDesc DateTime 
+from EVENT_T, CONTRACT_T, AGREEMENT_T, ARTIST_T
+where EVENT_T.EventID= AGREEMENT_T.EventID 
+and CONTRACT_T.ContractID = AGREEMENT_T.ContractID 
+and ARTIST_T.ArtistID= CONTRACT_T.ArtistID 
+and concat(FirstName, ' ', LastName) ='Juan Becker' ;
+
+#7‐77c. List the artist name, event ID, event description, date, time, and gross amount earned for all events
+#at which manager #1’s artists have performed at (based on event dates) in December 2014 and January 2015.
+select concat(FirstName, ' ', LastName)as ArtistName , 
+EVENT_T.EventID, EventDesc, DateTime, GrossAmount 
+from ARTIST_T, EVENT_T, CONTRACTEDARTIST_T, CONTRACT_T, AGREEMENT_T
+where EVENT_T.EventID= AGREEMENT_T.EventID and CONTRACT_T.ContractID = AGREEMENT_T.ContractID and ARTIST_T.ArtistID= CONTRACT_T.ArtistID and CONTRACTEDARTIST_T.ArtistID= ARTIST_T.ArtistID and
+AManagerID=1 and DateTime between '2014-12-01' and '2015-01-31';
+
+#7‐77d. For the events specified in the query above, determine the artist’s share, manager’s share, and
+#FAME share (assume an event split (50/50) between manager and FAME).
+select concat(FirstName, ' ', LastName)as ArtistName , EVENT_T.EventID, EventDesc, DateTime, GrossAmount,
+(GrossAmount*(1-RoyaltyPerc/100)) as ArtistShare, 0.5*(GrossAmount*RoyaltyPerc/100) as ManagerShare, 0.5*(GrossAmount*RoyaltyPerc/100) as FAMEShare
+from ARTIST_T, EVENT_T, CONTRACTEDARTIST_T, CONTRACT_T, AGREEMENT_T
+where EVENT_T.EventID= AGREEMENT_T.EventID and CONTRACT_T.ContractID = AGREEMENT_T.ContractID and ARTIST_T.ArtistID= CONTRACT_T.ArtistID and CONTRACTEDARTIST_T.ArtistID= ARTIST_T.ArtistID and
+AManagerID=1 and DateTime between '2014-12-01' and '2015-01-31';
+
+#7‐77e. For artist Juan Becker, list event ID, event description, date and time, gross revenue earned, and
+#artist’s share of the gross revenue for all events at that took place from December 1, 2014 to March 2015.
+select distinct EVENT_T.EventID, EventDesc, DateTime, GrossAmount, (GrossAmount*(1-RoyaltyPerc/100)) as ArtistShare 
+from EVENT_T, CONTRACT_T, AGREEMENT_T, ARTIST_T,CONTRACTEDARTIST_T
+where EVENT_T.EventID= AGREEMENT_T.EventID 
+and CONTRACT_T.ContractID = AGREEMENT_T.ContractID 
+and ARTIST_T.ArtistID= CONTRACT_T.ArtistID 
+and CONTRACTEDARTIST_T.ArtistID= ARTIST_T.ArtistID and
+concat(FirstName, ' ', LastName) ='Juan Becker' and DateTime between '2014-12-01' and '2015-03-30'; 
+
+#7‐77f. For artist Pat Jiminez, list all commitments (including category information and event description
+#when appropriate) for December 2014.
+
+
+SELECT  StartDateTime,EndDateTime,
+        CommitmentType,PRCCategory,EventDesc,VenueName
+FROM    ARTIST_T, CONTRACTEDARTIST_T, 
+        ARTISTCOMMITMENT_T, 
+        PERFORMANCERELATEDC_T, EVENT_T , VENUE_T 
+WHERE   ARTIST_T.ArtistID = CONTRACTEDARTIST_T.ArtistID AND
+        CONTRACTEDARTIST_T.ArtistID = ARTISTCOMMITMENT_T.ArtistID AND
+        ARTISTCOMMITMENT_T.ACommitmentID = PERFORMANCERELATEDC_T.ACommitmentID AND
+        CommitmentType = 'PR' AND
+        PRCCategory = 'P' AND
+        EVENT_T.EventID =PERFORMANCERELATEDC_T.EventID AND
+        VENUE_T.VenueID = EVENT_T.VenueID AND
+        ARTIST_T.ArtistID = 10
+      
+
+UNION
+
+SELECT  StartDateTime,EndDateTime,
+        CommitmentType,PRCCategory,EventDesc,VenueName
+FROM    ARTIST_T, CONTRACTEDARTIST_T, 
+        ARTISTCOMMITMENT_T, 
+        PERFORMANCERELATEDC_T, EVENT_T , VENUE_T 
+WHERE   ARTIST_T.ArtistID = CONTRACTEDARTIST_T.ArtistID AND
+        CONTRACTEDARTIST_T.ArtistID = ARTISTCOMMITMENT_T.ArtistID AND
+        ARTISTCOMMITMENT_T.ACommitmentID = PERFORMANCERELATEDC_T.ACommitmentID AND
+        CommitmentType = 'PR' AND
+        PRCCategory IN ('R','T') AND
+        EVENT_T.EventID =PERFORMANCERELATEDC_T.EventID AND
+        VENUE_T.VenueID = EVENT_T.VenueID AND
+        ARTIST_T.ArtistID = 10
+
+
+UNION
+
+SELECT  StartDateTime,EndDateTime,
+        CommitmentType, NULL,NULL,NULL
+FROM    ARTIST_T, CONTRACTEDARTIST_T, 
+        ARTISTCOMMITMENT_T, 
+        PERFORMANCERELATEDC_T, EVENT_T , VENUE_T 
+WHERE   ARTIST_T.ArtistID = CONTRACTEDARTIST_T.ArtistID AND
+        CONTRACTEDARTIST_T.ArtistID = ARTISTCOMMITMENT_T.ArtistID AND
+        ARTISTCOMMITMENT_T.ACommitmentID = PERFORMANCERELATEDC_T.ACommitmentID AND
+        CommitmentType = 'PE' AND
+        ARTIST_T.ArtistID = 10;
+
+        
+select ARTISTCOMMITMENT_T.ACommitmentID,concat(ARTIST_T.FirstName, ' ', ARTIST_T.LastName) as ArtistName,EventDesc,PERFORMANCERELATEDC_T.PRCCategory
+from EVENT_T, CONTRACT_T,ARTIST_T, ARTISTCOMMITMENT_T,PERFORMANCERELATEDC_T
+where  ARTIST_T.ArtistID= CONTRACT_T.ArtistID 
+and ARTISTCOMMITMENT_T.ArtistID=ARTIST_T.ArtistID
+and
+PERFORMANCERELATEDC_T.ACommitmentID=ARTISTCOMMITMENT_T.ACommitmentID
+and
+PERFORMANCERELATEDC_T.EventID=EVENT_T.EventID
+and
+concat(ARTIST_T.FirstName, ' ', ARTIST_T.LastName) ='Pat Jiminez' 
+and DateTime between '2014-12-01' and '2014-12-31';
